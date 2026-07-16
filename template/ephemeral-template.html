@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ephemeral-Eng Template — Simply Supported Beam Check V1.2</title>
+<!--
+═══════════════════════════════════════════════════════════════════════════
+  ephemeral-eng TEMPLATE  ·  https://github.com/YOUR-ORG/ephemeral-eng
+═══════════════════════════════════════════════════════════════════════════
+  One file. Inputs on the left. The client deliverable on the right.
+  Print → PDF and you're done.
+
+  ⚠️  THIS EXAMPLE (simply supported beam) IS FOR DEMONSTRATION ONLY.
+      Any tool built from this template is UNVERIFIED until a licensed
+      engineer completes the full checklist in VERIFICATION.md.
+      You are the engineer of record. The AI is not. This file is not.
+
+  THE FIVE SLOTS an AI (or you) fills to make a new tool:
+    SLOT 1 — BRAND TOKENS   (colors, fonts, firm identity)
+    SLOT 2 — INPUT SCHEMA   (fieldsets in the form panel)
+    SLOT 3 — CALC ENGINE    (pure JS functions, units in comments)
+    SLOT 4 — LIVE DIAGRAM   (SVG that redraws from inputs)
+    SLOT 5 — REPORT PAGES   (template literals → paginated deliverable)
+  Everything else (layout, render loop, print CSS) stays as-is.
+═══════════════════════════════════════════════════════════════════════════
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ═══ SLOT 1 · BRAND TOKENS — edit these to re-skin the whole tool ═══ */
+  :root{
+    --brand:#1a5c4c;              /* primary firm color            */
+    --brand-dark:#13463a;         /* hover / emphasis              */
+    --brand-soft:rgba(26,92,76,0.08);
+    --bg:#f5f3ef;                 /* app background                */
+    --surface:#ffffff;
+    --text:#1a1714;
+    --muted:#5c5955;
+    --border:#e2dfd8;
+    --warn:#b85c00;
+    --pass:#1e7a3b;
+    --fail:#c0392b;
+    --font-body:'Plus Jakarta Sans',sans-serif;
+    --font-mono:'JetBrains Mono',monospace;
+    /* Firm identity used on the report pages: */
+    --firm-name:"YOUR FIRM NAME";   /* also edit FIRM object in JS  */
+  }
+
+  /* ═══ FRAMEWORK CHROME — normally leave everything below alone ═══ */
+  *,*::before,*::after{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{font-family:var(--font-body);color:var(--text);background:var(--bg);line-height:1.5;}
+  .app{display:grid;grid-template-columns:minmax(420px,480px) 1fr;min-height:100vh;}
+
+  /* Left: input panel */
+  .form-panel{background:var(--surface);border-right:1px solid var(--border);padding:1.5rem;overflow-y:auto;max-height:100vh;position:sticky;top:0;}
+  .form-panel h1{color:var(--brand);font-size:1.2rem;margin:0 0 0.25rem;}
+  .form-panel .subtitle{font-size:0.78rem;color:var(--muted);margin:0 0 1.2rem;font-family:var(--font-mono);}
+  .version-badge{display:inline-block;font-family:var(--font-mono);font-size:0.68rem;background:var(--brand);color:#fff;padding:0.1rem 0.45rem;border-radius:10px;margin-left:0.4rem;letter-spacing:0.05em;}
+  fieldset{border:1px solid var(--border);border-radius:8px;padding:0.85rem 1rem 1rem;margin:0 0 1rem;background:#faf9f7;}
+  fieldset legend{font-weight:700;color:var(--brand);font-size:0.82rem;text-transform:uppercase;letter-spacing:0.05em;padding:0 0.4rem;}
+  .field{margin-bottom:0.7rem;}
+  .field:last-child{margin-bottom:0;}
+  .field label{display:block;font-weight:600;font-size:0.8rem;margin-bottom:0.25rem;}
+  .field input,.field select,.field textarea{width:100%;padding:0.45rem 0.6rem;border:1.5px solid var(--border);border-radius:6px;font-family:var(--font-mono);font-size:0.82rem;background:#fff;color:var(--text);}
+  .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft);}
+  .row-2{display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;}
+  .row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;}
+  .hint{color:var(--muted);font-weight:400;font-size:0.72rem;}
+  .live-result{background:var(--brand-soft);border:1px solid var(--brand);border-radius:6px;padding:0.5rem 0.7rem;margin-bottom:0.8rem;font-family:var(--font-mono);font-size:0.76rem;line-height:1.7;}
+  .live-result strong{color:var(--brand);}
+  .live-result .ok{color:var(--pass);font-weight:700;}
+  .live-result .no{color:var(--fail);font-weight:700;}
+  .warn-banner{background:rgba(184,92,0,0.08);border:1px solid rgba(184,92,0,0.3);border-left:3px solid var(--warn);border-radius:6px;padding:0.4rem 0.6rem;margin-bottom:0.8rem;font-size:0.74rem;color:var(--warn);display:none;}
+  .warn-banner.active{display:block;}
+  .file-drop{border:1px dashed var(--border);border-radius:6px;padding:0.5rem;font-size:0.8rem;color:var(--muted);cursor:pointer;}
+  .file-drop.hover{border-color:var(--brand);background:var(--brand-soft);}
+  .file-drop img{max-width:100%;max-height:120px;display:block;margin-top:0.4rem;border-radius:4px;}
+  .checkbox-line{display:flex;align-items:center;gap:0.45rem;font-size:0.82rem;font-weight:500;cursor:pointer;}
+  .checkbox-line input{width:auto;accent-color:var(--brand);cursor:pointer;}
+  .actions{position:sticky;bottom:0;background:linear-gradient(180deg,transparent,var(--surface) 30%);padding:1rem 0 0.5rem;display:flex;gap:0.5rem;margin-top:1rem;}
+  .btn{flex:1;padding:0.7rem 1rem;border:none;border-radius:6px;font-family:var(--font-body);font-weight:600;font-size:0.9rem;cursor:pointer;}
+  .btn-primary{background:var(--brand);color:#fff;}
+  .btn-primary:hover{background:var(--brand-dark);}
+  .btn-secondary{background:#fff;border:1.5px solid var(--border);color:var(--text);}
+  .btn-secondary:hover{border-color:var(--brand);color:var(--brand);}
+
+  /* Right: preview panel */
+  .preview-panel{padding:2rem 1rem;background:linear-gradient(180deg,#e8e6df,#f5f3ef);overflow-x:auto;}
+  .diagram-card{max-width:8.5in;margin:0 auto 1.5rem;background:#fff;border:1px solid var(--border);border-radius:8px;padding:0.8rem 1rem;box-shadow:0 3px 12px rgba(0,0,0,0.06);}
+  .diagram-card h2{margin:0 0 0.4rem;font-size:0.9rem;color:var(--brand);text-transform:uppercase;letter-spacing:0.05em;}
+  .diagram-card svg{width:100%;height:auto;display:block;}
+
+  /* The deliverable: US-Letter pages */
+  .report-page{background:#fff;width:8.5in;min-height:11in;padding:0.85in 0.8in 1.1in;margin:0 auto 1.5rem;box-shadow:0 6px 24px rgba(0,0,0,0.08);position:relative;font-size:10.5pt;line-height:1.45;color:#1a1714;overflow:hidden;}
+  .report-page h1{color:var(--brand);font-size:19pt;margin:0 0 0.2rem;font-weight:700;}
+  .report-page h2{color:var(--brand);font-size:13pt;margin:1.1rem 0 0.5rem;font-weight:700;border-bottom:1px solid #ccc;padding-bottom:0.2rem;}
+  .report-page h3{font-size:11pt;margin:0.8rem 0 0.35rem;font-weight:700;color:var(--brand);}
+  .report-page p{margin:0 0 0.5rem;}
+  .report-page .center{text-align:center;}
+  .doc-meta{font-family:var(--font-mono);font-size:9pt;color:#444;margin-bottom:0.8rem;}
+  .kv-table{width:100%;border-collapse:collapse;font-size:10pt;margin:0.4rem 0 0.8rem;}
+  .kv-table td{padding:0.18rem 0.4rem;border-bottom:1px dotted #ddd;vertical-align:top;}
+  .kv-table td.lbl{width:44%;color:#333;}
+  .kv-table td.sym{width:12%;font-family:var(--font-mono);}
+  .kv-table td.eq{width:4%;text-align:center;color:#888;}
+  .kv-table td.val{width:22%;font-family:var(--font-mono);font-weight:700;text-align:right;}
+  .kv-table td.unit{width:18%;font-family:var(--font-mono);color:#555;}
+  .calc-step{font-family:var(--font-mono);font-size:9.5pt;background:#f7f6f2;border-left:3px solid var(--brand);padding:0.5rem 0.7rem;margin:0.45rem 0;}
+  .calc-step .label{color:var(--brand);font-weight:700;}
+  .calc-step .ref{float:right;color:#777;font-size:8.5pt;}
+  .calc-table{width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:9pt;margin:0.5rem 0 0.8rem;}
+  .calc-table th,.calc-table td{border:1px solid #999;padding:0.28rem 0.45rem;text-align:right;}
+  .calc-table th{background:var(--brand);color:#fff;text-align:center;}
+  .calc-table td:first-child{text-align:left;font-weight:600;}
+  .status-cell{text-align:center !important;font-weight:700;}
+  .status-cell.pass{color:var(--pass);}
+  .status-cell.fail{color:var(--fail);}
+  tr.compliance-pass td{background:rgba(30,122,59,0.06);}
+  tr.compliance-fail td{background:rgba(192,57,43,0.09);}
+  .conclusion-box{border:2px solid var(--brand);border-radius:6px;padding:0.7rem 1rem;margin:0.8rem 0;}
+  .conclusion-box.fails{border-color:var(--fail);}
+  .signature-block{margin-top:2rem;}
+  .stamp-placeholder{border:2px dashed #aaa;width:2in;height:2in;display:inline-block;text-align:center;line-height:2in;color:#aaa;font-style:italic;font-size:9pt;}
+  .img-frame{text-align:center;margin:0.8rem 0;}
+  .img-frame img{max-width:85%;max-height:6.5in;border:1px solid #ccc;}
+  .img-frame .caption{font-size:9pt;color:#444;margin-top:0.3rem;font-style:italic;}
+  .page-footer{position:absolute;bottom:0;left:0;right:0;padding:0 0.8in 0.35in;}
+  .page-footer .footer-text{display:flex;justify-content:space-between;font-size:8.5pt;color:#333;border-top:2px solid var(--brand);padding-top:0.15rem;}
+  .watermark{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:5;}
+  .watermark span{transform:rotate(-32deg);font-size:44pt;font-weight:800;color:rgba(192,57,43,0.13);letter-spacing:0.12em;white-space:nowrap;border:6px solid rgba(192,57,43,0.13);padding:0.5rem 2rem;border-radius:10px;}
+
+  /* Print: the form panel vanishes; the pages become the PDF */
+  @media print{
+    body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .app{display:block;}
+    .form-panel,.diagram-card,.no-print{display:none !important;}
+    .preview-panel{padding:0;background:#fff;overflow:visible;}
+    .report-page{box-shadow:none;margin:0;page-break-after:always;break-inside:avoid;width:8.5in;height:11in;max-height:11in;}
+    .report-page:last-child{page-break-after:auto;}
+  }
+  @page{size:letter;margin:0;}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ═══ SLOT 2 · INPUT SCHEMA — every input gets id="f_..." ═══ -->
+<aside class="form-panel">
+  <h1>Beam Check <span class="version-badge">V1.2</span></h1>
+  <p class="subtitle">ephemeral-eng template · simply supported · uniform load · ASD</p>
+
+  <div class="live-result" id="liveResult">Enter values to see live results.</div>
+  <div class="warn-banner" id="warnBanner"></div>
+
+  <fieldset>
+    <legend>Branding <span class="hint" style="text-transform:none;letter-spacing:0;">— re-skin the deliverable live</span></legend>
+    <div class="field"><label>Firm name</label><input type="text" id="f_firmName" value="YOUR FIRM NAME"></div>
+    <div class="field"><label>Address line</label><input type="text" id="f_firmLine1" value="123 Your Street, Suite 100 · Your City, ST 00000"></div>
+    <div class="field"><label>License / contact line</label><input type="text" id="f_firmLine2" value="CA 00000 · (000) 000-0000 · you@yourfirm.com"></div>
+    <div class="row-2">
+      <div class="field"><label>Brand color</label><input type="color" id="f_brandColor" value="#1a5c4c" style="height:2.2rem;padding:0.15rem;"></div>
+      <div class="field"><label>Logo <span class="hint">drag/click</span></label>
+        <div class="file-drop" id="logoDrop" style="padding:0.35rem;">Drop logo…<input type="file" id="f_logo" accept="image/*" hidden></div>
+      </div>
+    </div>
+    <p class="hint" style="margin:0.3rem 0 0;">For a permanent re-skin, edit the SLOT 1 tokens &amp; FIRM object in the file — these fields are for per-project overrides and demos.</p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Project</legend>
+    <div class="field"><label>Project name</label><input type="text" id="f_project" value="Sample Residence — Kitchen Remodel"></div>
+    <div class="row-2">
+      <div class="field"><label>Project no.</label><input type="text" id="f_projNo" value="V26-000"></div>
+      <div class="field"><label>Date</label><input type="date" id="f_date"></div>
+    </div>
+    <div class="field"><label>Member ID <span class="hint">as shown on plans</span></label><input type="text" id="f_member" value="B-1 (Flush header @ kitchen)"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Geometry &amp; Load</legend>
+    <div class="row-2">
+      <div class="field"><label>Span, L <span class="hint">ft</span></label><input type="number" id="f_L" value="12" step="0.25" min="0"></div>
+      <div class="field"><label>Uniform load, w <span class="hint">plf, total ASD</span></label><input type="number" id="f_w" value="100" step="5" min="0"></div>
+    </div>
+    <p class="hint" style="margin:0.2rem 0 0;">Self-weight not added automatically — include it in w.</p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Section &amp; Material</legend>
+    <div class="row-2">
+      <div class="field"><label>Width, b <span class="hint">in, actual</span></label><input type="number" id="f_b" value="1.5" step="0.125" min="0"></div>
+      <div class="field"><label>Depth, d <span class="hint">in, actual</span></label><input type="number" id="f_d" value="9.25" step="0.125" min="0"></div>
+    </div>
+    <div class="row-3">
+      <div class="field"><label>F'b <span class="hint">psi</span></label><input type="number" id="f_Fb" value="1200" step="25" min="0"></div>
+      <div class="field"><label>F'v <span class="hint">psi</span></label><input type="number" id="f_Fv" value="180" step="5" min="0"></div>
+      <div class="field"><label>E <span class="hint">psi</span></label><input type="number" id="f_E" value="1600000" step="100000" min="0"></div>
+    </div>
+    <p class="hint" style="margin:0.2rem 0 0;">Enter <em>adjusted</em> design values (all NDS factors already applied).</p>
+    <div class="field" style="margin-top:0.6rem;"><label>Section / grade description</label><input type="text" id="f_desc" value="(1) 2×10 SP No.2 (example values)"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Criteria</legend>
+    <div class="field"><label>Deflection limit</label>
+      <select id="f_defl">
+        <option value="240" selected>L / 240 (total load)</option>
+        <option value="360">L / 360</option>
+        <option value="180">L / 180</option>
+      </select>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Exhibit (optional)</legend>
+    <div class="field">
+      <label>Site photo / plan snippet <span class="hint">drag &amp; drop or click</span></label>
+      <div class="file-drop" id="fileDrop">Drop image here…<input type="file" id="f_img" accept="image/*" hidden></div>
+    </div>
+    <div class="field"><label>Caption</label><input type="text" id="f_imgCap" value="Existing framing at proposed opening"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Output options</legend>
+    <label class="checkbox-line"><input type="checkbox" id="f_draft" checked> Show DRAFT — UNVERIFIED watermark</label>
+    <p class="hint" style="margin:0.35rem 0 0;">Leave ON until the VERIFICATION.md checklist is complete and initialed.</p>
+  </fieldset>
+
+  <div class="actions no-print" style="flex-wrap:wrap;">
+    <button class="btn btn-primary" onclick="window.print()">Print / Save PDF</button>
+    <button class="btn btn-secondary" onclick="location.reload()">Reset</button>
+    <button class="btn btn-secondary" onclick="exportJSON()" title="Download all current inputs as a portable JSON file">⤓ Save inputs (.json)</button>
+    <button class="btn btn-secondary" onclick="document.getElementById('f_jsonFile').click()" title="Load a previously saved or AI-pre-generated inputs JSON">⤒ Load inputs</button>
+    <input type="file" id="f_jsonFile" accept=".json,application/json" hidden>
+  </div>
+</aside>
+
+<main class="preview-panel">
+  <div class="diagram-card no-print">
+    <h2>Live diagram</h2>
+    <div id="diagram"></div>
+  </div>
+  <div id="report"><!-- SLOT 5 renders here --></div>
+</main>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   SLOT 1b · FIRM IDENTITY (appears on report pages)
+   ═══════════════════════════════════════════════════════════════════ */
+const FIRM = {
+  name: "YOUR FIRM NAME",
+  line1: "123 Your Street, Suite 100 · Your City, ST 00000",
+  line2: "CA 00000 · (000) 000-0000 · you@yourfirm.com",
+  toolName: "Simply Supported Beam Check",
+  toolVersion: "V1.2"
+};
+
+/* ═══════════════════════════════════════════════════════════════════
+   FRAMEWORK HELPERS — keep in every tool
+   ═══════════════════════════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const num = (x, dp=2) => Number.isFinite(x) ? x.toLocaleString("en-US",{minimumFractionDigits:dp, maximumFractionDigits:dp}) : "—";
+const badge = pass => `<td class="status-cell ${pass?'pass':'fail'}">${pass?'PASS ✓':'FAIL ✗'}</td>`;
+
+/* ═══════════════════════════════════════════════════════════════════
+   SLOT 3 · CALC ENGINE
+   RULES: pure functions · no DOM access · units in comments on
+   EVERY line · code references in comments · return one flat object.
+   ═══════════════════════════════════════════════════════════════════ */
+function computeBeam(inp){
+  // inp: { L ft, w plf, b in, d in, Fb psi, Fv psi, E psi, deflDen (240/360/180) }
+  const r = {};
+  // Section properties (rectangular)                    [NDS 2018 §3.2]
+  r.A = inp.b * inp.d;                       // in²
+  r.S = inp.b * inp.d * inp.d / 6;           // in³
+  r.I = inp.b * Math.pow(inp.d, 3) / 12;     // in⁴
+
+  // Demands — simply supported, uniform load
+  r.M    = inp.w * inp.L * inp.L / 8;        // lb·ft   (M = wL²/8)
+  r.M_in = r.M * 12;                         // lb·in
+  r.V    = inp.w * inp.L / 2;                // lb      (V = wL/2)
+  r.R    = r.V;                              // lb      (end reaction)
+
+  // Bending                                             [NDS 2018 §3.3]
+  r.fb   = r.M_in / r.S;                     // psi     (fb = M/S)
+  r.dcrB = r.fb / inp.Fb;                    // —
+  r.okB  = r.dcrB <= 1.0;
+
+  // Shear                                               [NDS 2018 §3.4]
+  r.fv   = 1.5 * r.V / r.A;                  // psi     (fv = 1.5V/A, rect.)
+  r.dcrV = r.fv / inp.Fv;                    // —
+  r.okV  = r.dcrV <= 1.0;
+
+  // Deflection — Δ = 5wL⁴ / (384 E I), consistent units: lb/in & in
+  const w_in = inp.w / 12;                   // lb/in
+  const L_in = inp.L * 12;                   // in
+  r.defl     = 5 * w_in * Math.pow(L_in,4) / (384 * inp.E * r.I);   // in
+  r.deflAllow= L_in / inp.deflDen;           // in
+  r.dcrD     = r.defl / r.deflAllow;         // —
+  r.okD      = r.dcrD <= 1.0;
+
+  r.okAll = r.okB && r.okV && r.okD;
+  r.governing = [["Bending",r.dcrB],["Shear",r.dcrV],["Deflection",r.dcrD]]
+                  .sort((a,b)=>b[1]-a[1])[0];
+  return r;
+}
+
+function validate(inp){
+  const warns = [];
+  if(inp.L<=0||inp.b<=0||inp.d<=0) warns.push("Span and section dimensions must be positive.");
+  if(inp.w<=0) warns.push("Load w is zero or negative — results are meaningless.");
+  if(inp.L>0 && inp.d>0 && (inp.L*12)/inp.d > 50) warns.push("Span-to-depth ratio exceeds 50 — check inputs.");
+  if(inp.Fb<=0||inp.Fv<=0||inp.E<=0) warns.push("Design values must be positive.");
+  return warns;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SLOT 4 · LIVE DIAGRAM — SVG string built from inputs
+   ═══════════════════════════════════════════════════════════════════ */
+function drawDiagram(inp, r){
+  const W=760, H=190, x0=90, x1=W-90, y=110;
+  let s = "";
+  // uniform load arrows + load line
+  s += `<line x1="${x0}" y1="52" x2="${x1}" y2="52" stroke="var(--fail)" stroke-width="2"/>`;
+  for(let i=0;i<=12;i++){
+    const x = x0 + (x1-x0)*i/12;
+    s += `<line x1="${x}" y1="52" x2="${x}" y2="${y-8}" stroke="var(--fail)" stroke-width="1.4"/>
+          <path d="M${x-4},${y-14} L${x},${y-6} L${x+4},${y-14}" fill="var(--fail)"/>`;
+  }
+  s += `<text x="${(x0+x1)/2}" y="42" text-anchor="middle" font-family="var(--font-mono)" font-size="13" fill="var(--fail)">w = ${num(inp.w,0)} plf</text>`;
+  // beam
+  s += `<rect x="${x0}" y="${y-4}" width="${x1-x0}" height="10" fill="var(--brand)" rx="2"/>`;
+  // supports
+  s += `<path d="M${x0},${y+6} l-13,22 h26 z" fill="none" stroke="#333" stroke-width="2"/>
+        <path d="M${x1},${y+6} l-13,22 h26 z" fill="none" stroke="#333" stroke-width="2"/>
+        <circle cx="${x1}" cy="${y+34}" r="4" fill="none" stroke="#333" stroke-width="2"/>`;
+  // span dimension
+  s += `<line x1="${x0}" y1="${y+48}" x2="${x1}" y2="${y+48}" stroke="#555" stroke-width="1" marker-start="url(#a)" marker-end="url(#a)"/>
+        <text x="${(x0+x1)/2}" y="${y+64}" text-anchor="middle" font-family="var(--font-mono)" font-size="13" fill="#333">L = ${num(inp.L,2)} ft</text>`;
+  // reactions
+  s += `<text x="${x0}" y="${y+34}" text-anchor="end" font-family="var(--font-mono)" font-size="12" fill="var(--brand)">R = ${num(r.R,0)} lb  </text>`;
+  // governing check readout
+  const col = r.okAll ? "var(--pass)" : "var(--fail)";
+  s += `<text x="${x1}" y="24" text-anchor="end" font-family="var(--font-mono)" font-size="14" font-weight="700" fill="${col}">${r.okAll?"ALL CHECKS PASS":"CHECK FAILS"} · gov. ${r.governing[0]} DCR ${num(r.governing[1],2)}</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+    <defs><marker id="a" markerWidth="8" markerHeight="8" refX="4" refY="4"><path d="M1,1 L7,7 M1,7 L7,1" stroke="#555"/></marker></defs>${s}</svg>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SLOT 5 · REPORT PAGES — the deliverable, as template literals.
+   Show substituted numbers so a reviewer can check WITHOUT the tool.
+   ═══════════════════════════════════════════════════════════════════ */
+function footer(pg, of, d){
+  return `<div class="page-footer"><div class="footer-text">
+    <span>${esc(d.firmName)} · ${esc(d.projNo)}</span>
+    <span>${esc(FIRM.toolName)} ${esc(FIRM.toolVersion)}</span>
+    <span>Page ${pg} of ${of}</span></div></div>`;
+}
+function wm(d){ return d.draft ? `<div class="watermark"><span>DRAFT — UNVERIFIED</span></div>` : ""; }
+
+function buildReport(d, r){
+  const pages = [];
+  const nPages = d.imgData ? 3 : 2;
+
+  /* Page 1 — cover, inputs, criteria */
+  pages.push(`<div class="report-page">${wm(d)}
+    <div style="display:flex;align-items:center;gap:0.8rem;">
+      ${d.logoData ? `<img src="${d.logoData}" alt="logo" style="max-height:0.85in;max-width:2.2in;">` : ""}
+      <div>
+        <h1 style="margin:0;">${esc(d.firmName)}</h1>
+        <div class="doc-meta" style="margin:0.15rem 0 0;">${esc(d.firmLine1)}<br>${esc(d.firmLine2)}</div>
+      </div>
+    </div>
+    <h2 style="margin-top:0.4rem;">Structural Calculation — Simply Supported Beam</h2>
+    <table class="kv-table">
+      <tr><td class="lbl">Project</td><td class="eq"></td><td class="val" colspan="3" style="text-align:left;">${esc(d.project)}</td></tr>
+      <tr><td class="lbl">Project no. / Date</td><td class="eq"></td><td class="val" colspan="3" style="text-align:left;">${esc(d.projNo)} · ${esc(d.date)}</td></tr>
+      <tr><td class="lbl">Member</td><td class="eq"></td><td class="val" colspan="3" style="text-align:left;">${esc(d.member)}</td></tr>
+      <tr><td class="lbl">Section</td><td class="eq"></td><td class="val" colspan="3" style="text-align:left;">${esc(d.desc)}</td></tr>
+    </table>
+    <h2>1. Design Basis</h2>
+    <p>Member analyzed as a simply supported beam with a uniformly distributed load. Allowable
+       Stress Design. Adjusted design values per the National Design Specification for Wood
+       Construction (NDS), entered by the engineer with all applicable adjustment factors applied.
+       Beam self-weight is included in the applied load w. Deflection limit: L/${d.deflDen} (total load).</p>
+    <h2>2. Inputs</h2>
+    <table class="kv-table">
+      <tr><td class="lbl">Span</td><td class="sym">L</td><td class="eq">=</td><td class="val">${num(d.L,2)}</td><td class="unit">ft</td></tr>
+      <tr><td class="lbl">Uniform load (ASD)</td><td class="sym">w</td><td class="eq">=</td><td class="val">${num(d.w,0)}</td><td class="unit">plf</td></tr>
+      <tr><td class="lbl">Width (actual)</td><td class="sym">b</td><td class="eq">=</td><td class="val">${num(d.b,3)}</td><td class="unit">in</td></tr>
+      <tr><td class="lbl">Depth (actual)</td><td class="sym">d</td><td class="eq">=</td><td class="val">${num(d.d,3)}</td><td class="unit">in</td></tr>
+      <tr><td class="lbl">Adj. bending design value</td><td class="sym">F'<sub>b</sub></td><td class="eq">=</td><td class="val">${num(d.Fb,0)}</td><td class="unit">psi</td></tr>
+      <tr><td class="lbl">Adj. shear design value</td><td class="sym">F'<sub>v</sub></td><td class="eq">=</td><td class="val">${num(d.Fv,0)}</td><td class="unit">psi</td></tr>
+      <tr><td class="lbl">Modulus of elasticity</td><td class="sym">E</td><td class="eq">=</td><td class="val">${num(d.E,0)}</td><td class="unit">psi</td></tr>
+    </table>
+    <h2>3. Section Properties</h2>
+    <div class="calc-step"><span class="ref">rectangular section</span><span class="label">A</span> = b·d = ${num(d.b,3)} × ${num(d.d,3)} = <strong>${num(r.A,2)} in²</strong></div>
+    <div class="calc-step"><span class="label">S</span> = b·d²/6 = ${num(d.b,3)} × ${num(d.d,3)}²/6 = <strong>${num(r.S,2)} in³</strong></div>
+    <div class="calc-step"><span class="label">I</span> = b·d³/12 = ${num(d.b,3)} × ${num(d.d,3)}³/12 = <strong>${num(r.I,2)} in⁴</strong></div>
+    ${footer(1,nPages,d)}
+  </div>`);
+
+  /* Page 2 — checks, summary, conclusion, signature */
+  pages.push(`<div class="report-page">${wm(d)}
+    <h2 style="margin-top:0;">4. Demands</h2>
+    <div class="calc-step"><span class="label">M</span> = w·L²/8 = ${num(d.w,0)} × ${num(d.L,2)}²/8 = <strong>${num(r.M,0)} lb·ft</strong> = ${num(r.M_in,0)} lb·in</div>
+    <div class="calc-step"><span class="label">V</span> = w·L/2 = ${num(d.w,0)} × ${num(d.L,2)}/2 = <strong>${num(r.V,0)} lb</strong> &nbsp;(= end reaction R)</div>
+    <h2>5. Checks</h2>
+    <div class="calc-step"><span class="ref">NDS 2018 §3.3</span><span class="label">Bending:</span> f<sub>b</sub> = M/S = ${num(r.M_in,0)}/${num(r.S,2)} = <strong>${num(r.fb,0)} psi</strong> vs F'<sub>b</sub> = ${num(d.Fb,0)} psi → DCR = ${num(r.dcrB,2)}</div>
+    <div class="calc-step"><span class="ref">NDS 2018 §3.4</span><span class="label">Shear:</span> f<sub>v</sub> = 1.5V/A = 1.5 × ${num(r.V,0)}/${num(r.A,2)} = <strong>${num(r.fv,1)} psi</strong> vs F'<sub>v</sub> = ${num(d.Fv,0)} psi → DCR = ${num(r.dcrV,2)}</div>
+    <div class="calc-step"><span class="label">Deflection:</span> Δ = 5wL⁴/(384EI) = <strong>${num(r.defl,3)} in</strong> vs L/${d.deflDen} = ${num(r.deflAllow,3)} in → DCR = ${num(r.dcrD,2)}</div>
+    <h2>6. Summary</h2>
+    <table class="calc-table">
+      <tr><th>Check</th><th>Demand</th><th>Capacity / Limit</th><th>DCR</th><th>Status</th></tr>
+      <tr class="compliance-${r.okB?'pass':'fail'}"><td>Bending</td><td>${num(r.fb,0)} psi</td><td>${num(d.Fb,0)} psi</td><td>${num(r.dcrB,2)}</td>${badge(r.okB)}</tr>
+      <tr class="compliance-${r.okV?'pass':'fail'}"><td>Shear</td><td>${num(r.fv,1)} psi</td><td>${num(d.Fv,0)} psi</td><td>${num(r.dcrV,2)}</td>${badge(r.okV)}</tr>
+      <tr class="compliance-${r.okD?'pass':'fail'}"><td>Deflection</td><td>${num(r.defl,3)} in</td><td>${num(r.deflAllow,3)} in</td><td>${num(r.dcrD,2)}</td>${badge(r.okD)}</tr>
+    </table>
+    <div class="conclusion-box ${r.okAll?'':'fails'}">
+      <strong>Conclusion:</strong> The member ${esc(d.desc)} is <strong>${r.okAll?"ADEQUATE":"NOT ADEQUATE"}</strong> for the
+      stated loading and criteria. Governing check: ${r.governing[0]} (DCR ${num(r.governing[1],2)}).
+    </div>
+    <p style="font-size:8.5pt;color:#555;">This calculation was produced with a single-file tool built on the ephemeral-eng
+      framework and is valid only when reviewed, verified, and sealed by the licensed engineer of record.
+      Tool: ${esc(FIRM.toolName)} ${esc(FIRM.toolVersion)}.</p>
+    <div class="signature-block">
+      <div class="stamp-placeholder">P.E. STAMP</div>
+      <p style="margin-top:0.5rem;">Engineer of Record: ______________________ &nbsp;&nbsp; Date: ____________</p>
+    </div>
+    ${footer(2,nPages,d)}
+  </div>`);
+
+  /* Page 3 — exhibit (only if an image was dropped) */
+  if(d.imgData){
+    pages.push(`<div class="report-page">${wm(d)}
+      <h2 style="margin-top:0;">Appendix A — Exhibit</h2>
+      <div class="img-frame"><img src="${d.imgData}" alt="exhibit"><div class="caption">${esc(d.imgCap)}</div></div>
+      ${footer(3,nPages,d)}
+    </div>`);
+  }
+  return pages.join("");
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   FRAMEWORK RENDER LOOP — gather → validate → compute → render
+   ═══════════════════════════════════════════════════════════════════ */
+let imgData = null;
+let logoData = null;
+
+function gather(){
+  return {
+    firmName: $("f_firmName").value || FIRM.name,
+    firmLine1: $("f_firmLine1").value || FIRM.line1,
+    firmLine2: $("f_firmLine2").value || FIRM.line2,
+    logoData,
+    project: $("f_project").value, projNo: $("f_projNo").value,
+    date: $("f_date").value || new Date().toISOString().slice(0,10),
+    member: $("f_member").value, desc: $("f_desc").value,
+    L: parseFloat($("f_L").value)||0,  w: parseFloat($("f_w").value)||0,
+    b: parseFloat($("f_b").value)||0,  d: parseFloat($("f_d").value)||0,
+    Fb: parseFloat($("f_Fb").value)||0, Fv: parseFloat($("f_Fv").value)||0,
+    E: parseFloat($("f_E").value)||0,  deflDen: parseInt($("f_defl").value,10),
+    draft: $("f_draft").checked, imgData, imgCap: $("f_imgCap").value
+  };
+}
+
+function render(){
+  const d = gather();
+  const warns = validate(d);
+  if(importNotice) warns.unshift(importNotice);
+  const wb = $("warnBanner");
+  wb.className = "warn-banner" + (warns.length ? " active" : "");
+  wb.innerHTML = warns.map(esc).join("<br>");
+  if(warns.some(w=>w.includes("must be positive"))){
+    $("liveResult").innerHTML = "Fix inputs to see results.";
+    $("diagram").innerHTML = ""; $("report").innerHTML = ""; return;
+  }
+  const r = computeBeam(d);
+  $("liveResult").innerHTML =
+    `<strong>M</strong> = ${num(r.M,0)} lb·ft · <strong>V</strong> = ${num(r.V,0)} lb · <strong>Δ</strong> = ${num(r.defl,3)} in<br>` +
+    `Bending <span class="${r.okB?'ok':'no'}">${num(r.dcrB,2)}</span> · ` +
+    `Shear <span class="${r.okV?'ok':'no'}">${num(r.dcrV,2)}</span> · ` +
+    `Defl <span class="${r.okD?'ok':'no'}">${num(r.dcrD,2)}</span> → ` +
+    `<span class="${r.okAll?'ok':'no'}">${r.okAll?"PASS":"FAIL"}</span>`;
+  $("diagram").innerHTML = drawDiagram(d, r);
+  $("report").innerHTML  = buildReport(d, r);
+}
+
+/* image drag & drop */
+const drop = $("fileDrop");
+drop.addEventListener("click", ()=> $("f_img").click());
+["dragover","dragenter"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("hover");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("hover");}));
+drop.addEventListener("drop", e=> loadImg(e.dataTransfer.files[0]));
+$("f_img").addEventListener("change", e=> loadImg(e.target.files[0]));
+function loadImg(f){
+  if(!f || !f.type.startsWith("image/")) return;
+  const rd = new FileReader();
+  rd.onload = ()=>{ imgData = rd.result;
+    drop.innerHTML = "Image loaded ✓ (click to replace)<img src='"+imgData+"'>";
+    render(); };
+  rd.readAsDataURL(f);
+}
+
+/* logo drag & drop → report header */
+const lDrop = $("logoDrop");
+lDrop.addEventListener("click", ()=> $("f_logo").click());
+["dragover","dragenter"].forEach(ev=>lDrop.addEventListener(ev,e=>{e.preventDefault();lDrop.classList.add("hover");}));
+["dragleave","drop"].forEach(ev=>lDrop.addEventListener(ev,e=>{e.preventDefault();lDrop.classList.remove("hover");}));
+lDrop.addEventListener("drop", e=> loadLogo(e.dataTransfer.files[0]));
+$("f_logo").addEventListener("change", e=> loadLogo(e.target.files[0]));
+function loadLogo(f){
+  if(!f || !f.type.startsWith("image/")) return;
+  const rd = new FileReader();
+  rd.onload = ()=>{ logoData = rd.result;
+    lDrop.innerHTML = "Logo ✓ (click to replace)<img src='"+logoData+"' style='max-height:40px;'>";
+    render(); };
+  rd.readAsDataURL(f);
+}
+
+/* live brand color → CSS custom properties (also affects print) */
+function hexToRgb(h){const n=parseInt(h.slice(1),16);return [n>>16&255,n>>8&255,n&255];}
+$("f_brandColor").addEventListener("input", e=>{
+  const hex = e.target.value, [rr,gg,bb] = hexToRgb(hex);
+  const root = document.documentElement.style;
+  root.setProperty("--brand", hex);
+  root.setProperty("--brand-dark", `rgb(${Math.round(rr*0.72)},${Math.round(gg*0.72)},${Math.round(bb*0.72)})`);
+  root.setProperty("--brand-soft", `rgba(${rr},${gg},${bb},0.08)`);
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   FRAMEWORK · INPUT JSON SAVE/LOAD — keep in every tool.
+   Exports every id="f_*" input (+ dropped images) to a portable JSON;
+   imports the same, so projects can be archived, re-used, or
+   PRE-GENERATED BY AN AI from plan notes / emails and just reviewed.
+   AI-generated files must set _meta.source = "ai" — the tool then
+   shows a persistent verify reminder until the engineer edits inputs.
+   ═══════════════════════════════════════════════════════════════════ */
+let importNotice = "";
+
+function serializeInputs(){
+  const inputs = {};
+  document.querySelectorAll('[id^="f_"]').forEach(el=>{
+    if(el.type === "file") return;
+    inputs[el.id] = (el.type === "checkbox") ? el.checked : el.value;
+  });
+  return {
+    _meta: {
+      framework: "ephemeral-eng",
+      tool: FIRM.toolName,
+      toolVersion: FIRM.toolVersion,
+      saved: new Date().toISOString(),
+      source: "user",   // AIs pre-generating this file MUST set "ai"
+      note: "Portable input state. Load via the tool's 'Load inputs' button. Keys mirror the tool's f_* input ids."
+    },
+    inputs,
+    images: { logoData: logoData || null, imgData: imgData || null }
+  };
+}
+
+function exportJSON(){
+  const state = serializeInputs();
+  const slug = FIRM.toolName.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+  const name = `${($("f_projNo").value||"project").replace(/[^\w-]+/g,"_")}_${slug}_inputs.json`;
+  const blob = new Blob([JSON.stringify(state,null,2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importJSON(file){
+  if(!file) return;
+  const rd = new FileReader();
+  rd.onload = ()=>{
+    let state;
+    try { state = JSON.parse(rd.result); }
+    catch(e){ importNotice = "Could not parse that file as JSON."; render(); return; }
+    const meta = state._meta || {};
+    const notes = [];
+    if(meta.framework !== "ephemeral-eng") notes.push("File is not tagged as an ephemeral-eng input file — applying anyway; review every field.");
+    else if(meta.tool && meta.tool !== FIRM.toolName) notes.push(`File was saved by a different tool ("${meta.tool}") — mismatched fields were skipped; review every value.`);
+    else if(meta.toolVersion && meta.toolVersion !== FIRM.toolVersion) notes.push(`File was saved by ${meta.tool} ${meta.toolVersion}; this is ${FIRM.toolVersion}. Review inputs — fields may have changed between versions.`);
+    if(String(meta.source).toLowerCase().includes("ai")) notes.push("⚠ These inputs were AI-GENERATED. Verify EVERY value against the project documents before relying on any result.");
+    for(const [id,val] of Object.entries(state.inputs || {})){
+      const el = $(id);
+      if(!el || el.type === "file") continue;
+      if(el.type === "checkbox") el.checked = !!val; else el.value = val;
+    }
+    if(state.images){
+      if(state.images.logoData){ logoData = state.images.logoData; lDrop.innerHTML = "Logo ✓ (click to replace)<img src='"+logoData+"' style='max-height:40px;'>"; }
+      if(state.images.imgData){ imgData = state.images.imgData; drop.innerHTML = "Image loaded ✓ (click to replace)<img src='"+imgData+"'>"; }
+    }
+    if($("f_brandColor")) $("f_brandColor").dispatchEvent(new Event("input"));
+    importNotice = notes.join(" ");
+    render();
+  };
+  rd.readAsText(file);
+}
+$("f_jsonFile").addEventListener("change", e=>{ importJSON(e.target.files[0]); e.target.value=""; });
+
+/* wire every input to the render loop (manual edits clear import notices) */
+document.querySelectorAll("input,select,textarea").forEach(el=>{
+  const h = ()=>{ importNotice=""; render(); };
+  el.addEventListener("input", h);
+  el.addEventListener("change", h);
+});
+$("f_date").value = new Date().toISOString().slice(0,10);
+render();
+</script>
+</body>
+</html>

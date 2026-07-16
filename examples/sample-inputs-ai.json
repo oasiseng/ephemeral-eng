@@ -1,0 +1,26 @@
+{
+  "_meta": {
+    "framework": "ephemeral-eng",
+    "tool": "Simply Supported Beam Check",
+    "toolVersion": "V1.2",
+    "saved": "2026-07-16T00:00:00Z",
+    "source": "ai",
+    "note": "DEMO of an AI-pre-generated input file. Values invented for demonstration — loading this into the template shows the persistent 'verify every value' banner. Real AI-generated files must trace every value to project documents."
+  },
+  "inputs": {
+    "f_project": "Martinez Residence — Living Room Wall Removal",
+    "f_projNo": "V26-142",
+    "f_member": "B-2 (Flush beam @ removed bearing wall)",
+    "f_L": "14",
+    "f_w": "285",
+    "f_b": "3",
+    "f_d": "9.25",
+    "f_Fb": "1400",
+    "f_Fv": "190",
+    "f_E": "1700000",
+    "f_desc": "(2) 2\u00d710 SP No.1 (AI-suggested \u2014 VERIFY grade & values)",
+    "f_defl": "360",
+    "f_draft": true
+  },
+  "images": { "logoData": null, "imgData": null }
+}

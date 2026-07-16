@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Door &amp; Window Wind Pressure — ASCE 7-22 C&amp;C (ephemeral-eng example) V1.1</title>
+<!--
+═══════════════════════════════════════════════════════════════════════════
+  ephemeral-eng EXAMPLE MODULE · Door/Window C&C Wind Pressures
+  ASCE 7-22 Ch. 30 Part 1 — wall Zones 4/5, h ≤ 60 ft, enclosed/part. encl.
+
+  Engine ported from github.com/oasiseng/ASCE-7-22-Door-Window-Wind-Pressure-
+  Calculator (MIT). Reproduces that repo's two documented verification cases:
+    V=160, Exp C, h=30, A=1, θ=5°, enclosed, elev 0:
+      Kh=0.9805  qh=64.26 psf  Z4 +58.99/−63.90  Z5 +58.99/−78.65 (ult)
+    V=115, Exp C, h=30, A=20, θ=5°:
+      qh=33.20  Z4 +29.1/−31.7  Z5 +29.1/−37.9 (ult) → ASD ×0.6
+
+  ⚠️ UNVERIFIED for your use until YOU complete VERIFICATION.md.
+     Estimate-quality tool. Not a sealed engineering document.
+═══════════════════════════════════════════════════════════════════════════
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ═══ SLOT 1 · BRAND TOKENS ═══ */
+  :root{
+    --brand:#1a5c4c; --brand-dark:#13463a; --brand-soft:rgba(26,92,76,0.08);
+    --bg:#f5f3ef; --surface:#fff; --text:#1a1714; --muted:#5c5955; --border:#e2dfd8;
+    --warn:#b85c00; --pass:#1e7a3b; --fail:#c0392b;
+    --font-body:'Plus Jakarta Sans',sans-serif; --font-mono:'JetBrains Mono',monospace;
+  }
+  *,*::before,*::after{box-sizing:border-box;} html,body{margin:0;padding:0;}
+  body{font-family:var(--font-body);color:var(--text);background:var(--bg);line-height:1.5;}
+  .app{display:grid;grid-template-columns:minmax(420px,480px) 1fr;min-height:100vh;}
+  .form-panel{background:var(--surface);border-right:1px solid var(--border);padding:1.5rem;overflow-y:auto;max-height:100vh;position:sticky;top:0;}
+  .form-panel h1{color:var(--brand);font-size:1.15rem;margin:0 0 0.25rem;}
+  .form-panel .subtitle{font-size:0.76rem;color:var(--muted);margin:0 0 1.2rem;font-family:var(--font-mono);}
+  .version-badge{display:inline-block;font-family:var(--font-mono);font-size:0.68rem;background:var(--brand);color:#fff;padding:0.1rem 0.45rem;border-radius:10px;margin-left:0.4rem;}
+  fieldset{border:1px solid var(--border);border-radius:8px;padding:0.85rem 1rem 1rem;margin:0 0 1rem;background:#faf9f7;}
+  fieldset legend{font-weight:700;color:var(--brand);font-size:0.82rem;text-transform:uppercase;letter-spacing:0.05em;padding:0 0.4rem;}
+  .field{margin-bottom:0.7rem;} .field:last-child{margin-bottom:0;}
+  .field label{display:block;font-weight:600;font-size:0.8rem;margin-bottom:0.25rem;}
+  .field input,.field select{width:100%;padding:0.45rem 0.6rem;border:1.5px solid var(--border);border-radius:6px;font-family:var(--font-mono);font-size:0.82rem;background:#fff;color:var(--text);}
+  .field input:focus,.field select:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft);}
+  .row-2{display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;} .row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;}
+  .hint{color:var(--muted);font-weight:400;font-size:0.72rem;}
+  .live-result{background:var(--brand-soft);border:1px solid var(--brand);border-radius:6px;padding:0.5rem 0.7rem;margin-bottom:0.8rem;font-family:var(--font-mono);font-size:0.76rem;line-height:1.7;}
+  .live-result strong{color:var(--brand);}
+  .warn-banner{background:rgba(184,92,0,0.08);border:1px solid rgba(184,92,0,0.3);border-left:3px solid var(--warn);border-radius:6px;padding:0.4rem 0.6rem;margin-bottom:0.8rem;font-size:0.74rem;color:var(--warn);display:none;}
+  .warn-banner.active{display:block;}
+  .checkbox-line{display:flex;align-items:center;gap:0.45rem;font-size:0.82rem;font-weight:500;cursor:pointer;}
+  .checkbox-line input{width:auto;accent-color:var(--brand);cursor:pointer;}
+  .actions{position:sticky;bottom:0;background:linear-gradient(180deg,transparent,var(--surface) 30%);padding:1rem 0 0.5rem;display:flex;gap:0.5rem;margin-top:1rem;}
+  .btn{flex:1;padding:0.7rem 1rem;border:none;border-radius:6px;font-family:var(--font-body);font-weight:600;font-size:0.9rem;cursor:pointer;}
+  .btn-primary{background:var(--brand);color:#fff;} .btn-primary:hover{background:var(--brand-dark);}
+  .btn-secondary{background:#fff;border:1.5px solid var(--border);color:var(--text);}
+  .preview-panel{padding:2rem 1rem;background:linear-gradient(180deg,#e8e6df,#f5f3ef);overflow-x:auto;}
+  .diagram-card{max-width:8.5in;margin:0 auto 1.5rem;background:#fff;border:1px solid var(--border);border-radius:8px;padding:0.8rem 1rem;box-shadow:0 3px 12px rgba(0,0,0,0.06);}
+  .diagram-card h2{margin:0 0 0.4rem;font-size:0.9rem;color:var(--brand);text-transform:uppercase;letter-spacing:0.05em;}
+  .diagram-card svg{width:100%;height:auto;display:block;}
+  .report-page{background:#fff;width:8.5in;min-height:11in;padding:0.85in 0.8in 1.1in;margin:0 auto 1.5rem;box-shadow:0 6px 24px rgba(0,0,0,0.08);position:relative;font-size:10.5pt;line-height:1.45;overflow:hidden;}
+  .report-page h1{color:var(--brand);font-size:19pt;margin:0 0 0.2rem;}
+  .report-page h2{color:var(--brand);font-size:13pt;margin:1.1rem 0 0.5rem;border-bottom:1px solid #ccc;padding-bottom:0.2rem;}
+  .report-page p{margin:0 0 0.5rem;}
+  .doc-meta{font-family:var(--font-mono);font-size:9pt;color:#444;margin-bottom:0.8rem;}
+  .kv-table{width:100%;border-collapse:collapse;font-size:10pt;margin:0.4rem 0 0.8rem;}
+  .kv-table td{padding:0.18rem 0.4rem;border-bottom:1px dotted #ddd;}
+  .kv-table td.lbl{width:44%;} .kv-table td.sym{width:12%;font-family:var(--font-mono);}
+  .kv-table td.eq{width:4%;text-align:center;color:#888;}
+  .kv-table td.val{width:22%;font-family:var(--font-mono);font-weight:700;text-align:right;}
+  .kv-table td.unit{width:18%;font-family:var(--font-mono);color:#555;}
+  .calc-step{font-family:var(--font-mono);font-size:9.5pt;background:#f7f6f2;border-left:3px solid var(--brand);padding:0.5rem 0.7rem;margin:0.45rem 0;}
+  .calc-step .label{color:var(--brand);font-weight:700;} .calc-step .ref{float:right;color:#777;font-size:8.5pt;}
+  .calc-table{width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:9pt;margin:0.5rem 0 0.8rem;}
+  .calc-table th,.calc-table td{border:1px solid #999;padding:0.28rem 0.45rem;text-align:right;}
+  .calc-table th{background:var(--brand);color:#fff;text-align:center;}
+  .calc-table td:first-child{text-align:left;font-weight:600;}
+  .min-gov{font-size:8pt;color:var(--warn);}
+  .conclusion-box{border:2px solid var(--brand);border-radius:6px;padding:0.7rem 1rem;margin:0.8rem 0;}
+  .signature-block{margin-top:1.6rem;}
+  .stamp-placeholder{border:2px dashed #aaa;width:2in;height:2in;display:inline-block;text-align:center;line-height:2in;color:#aaa;font-style:italic;font-size:9pt;}
+  .page-footer{position:absolute;bottom:0;left:0;right:0;padding:0 0.8in 0.35in;}
+  .page-footer .footer-text{display:flex;justify-content:space-between;font-size:8.5pt;color:#333;border-top:2px solid var(--brand);padding-top:0.15rem;}
+  .watermark{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:5;}
+  .watermark span{transform:rotate(-32deg);font-size:44pt;font-weight:800;color:rgba(192,57,43,0.13);letter-spacing:0.12em;white-space:nowrap;border:6px solid rgba(192,57,43,0.13);padding:0.5rem 2rem;border-radius:10px;}
+  @media print{
+    body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .app{display:block;} .form-panel,.diagram-card,.no-print{display:none !important;}
+    .preview-panel{padding:0;background:#fff;overflow:visible;}
+    .report-page{box-shadow:none;margin:0;page-break-after:always;break-inside:avoid;width:8.5in;height:11in;max-height:11in;}
+    .report-page:last-child{page-break-after:auto;}
+  }
+  @page{size:letter;margin:0;}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ═══ SLOT 2 · INPUT SCHEMA ═══ -->
+<aside class="form-panel">
+  <h1>Door / Window Wind Pressure <span class="version-badge">V1.1</span></h1>
+  <p class="subtitle">ASCE 7-22 Ch.30 Part 1 · wall zones 4/5 · h ≤ 60 ft · C&amp;C</p>
+
+  <div class="live-result" id="liveResult">Enter values to see live pressures.</div>
+  <div class="warn-banner" id="warnBanner"></div>
+
+  <fieldset>
+    <legend>Project</legend>
+    <div class="field"><label>Project</label><input type="text" id="f_project" value="Sample Residence — Window Replacement"></div>
+    <div class="row-2">
+      <div class="field"><label>Project no.</label><input type="text" id="f_projNo" value="V26-000"></div>
+      <div class="field"><label>Date</label><input type="date" id="f_date"></div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Wind &amp; Site</legend>
+    <div class="row-3">
+      <div class="field"><label>V <span class="hint">mph, ult</span></label><input type="number" id="f_V" value="160" step="1" min="0"></div>
+      <div class="field"><label>Exposure</label>
+        <select id="f_exp"><option>B</option><option selected>C</option><option>D</option></select></div>
+      <div class="field"><label>Kzt</label><input type="number" id="f_Kzt" value="1.00" step="0.01" min="1"></div>
+    </div>
+    <div class="row-2">
+      <div class="field"><label>Ground elev. <span class="hint">ft, for Ke</span></label><input type="number" id="f_elev" value="0" step="50"></div>
+      <div class="field"><label>Enclosure</label>
+        <select id="f_encl">
+          <option value="enclosed" selected>Enclosed (GCpi ±0.18)</option>
+          <option value="partiallyOpen">Partially open (±0.18)</option>
+          <option value="partiallyEnclosed">Partially enclosed (±0.55)</option>
+        </select></div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Building &amp; Component</legend>
+    <div class="row-3">
+      <div class="field"><label>Length L <span class="hint">ft</span></label><input type="number" id="f_L" value="60" step="1" min="0"></div>
+      <div class="field"><label>Width W <span class="hint">ft</span></label><input type="number" id="f_W" value="40" step="1" min="0"></div>
+      <div class="field"><label>Mean h <span class="hint">ft</span></label><input type="number" id="f_h" value="30" step="0.5" min="0"></div>
+    </div>
+    <div class="row-2">
+      <div class="field"><label>Roof slope θ <span class="hint">deg</span></label><input type="number" id="f_theta" value="5" step="1" min="0"></div>
+      <div class="field"><label>Eff. wind area <span class="hint">sf</span></label><input type="number" id="f_area" value="20" step="1" min="0"></div>
+    </div>
+    <p class="hint" style="margin:0.2rem 0 0;">h ≤ 60 ft only. Effective area = component tributary area; GCp log-interpolated 10↔500 sf per Fig. 30.3-1.</p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Output options</legend>
+    <label class="checkbox-line"><input type="checkbox" id="f_draft" checked> Show DRAFT — UNVERIFIED watermark</label>
+  </fieldset>
+
+  <div class="actions no-print" style="flex-wrap:wrap;">
+    <button class="btn btn-primary" onclick="window.print()">Print / Save PDF</button>
+    <button class="btn btn-secondary" onclick="location.reload()">Reset</button>
+    <button class="btn btn-secondary" onclick="exportJSON()" title="Download all current inputs as a portable JSON file">⤓ Save inputs (.json)</button>
+    <button class="btn btn-secondary" onclick="document.getElementById('f_jsonFile').click()" title="Load a previously saved or AI-pre-generated inputs JSON">⤒ Load inputs</button>
+    <input type="file" id="f_jsonFile" accept=".json,application/json" hidden>
+  </div>
+</aside>
+
+<main class="preview-panel">
+  <div class="diagram-card no-print"><h2>Live diagram — wall zones</h2><div id="diagram"></div></div>
+  <div id="report"></div>
+</main>
+</div>
+
+<script>
+const FIRM = {
+  name: "YOUR FIRM NAME",
+  line1: "123 Your Street, Suite 100 · Your City, ST 00000",
+  line2: "CA 00000 · (000) 000-0000 · you@yourfirm.com",
+  toolName: "Door/Window Wind Pressure (ASCE 7-22 C&C)",
+  toolVersion: "V1.1"
+};
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const num = (x, dp=2) => Number.isFinite(x) ? x.toLocaleString("en-US",{minimumFractionDigits:dp, maximumFractionDigits:dp}) : "—";
+
+/* ═══ SLOT 3 · CALC ENGINE — ported from oasiseng ASCE-7-22 door/window repo ═══ */
+const ASCE = {
+  // Terrain exposure constants                          [Table 26.11-1]
+  EXPOSURE: { B:{alpha:7.5, zg:3280}, C:{alpha:9.8, zg:2460}, D:{alpha:11.5, zg:1935} },
+  KZ_MIN_Z: 15,          // ft — Kz formula floor        [Table 26.10-1 Note 1]
+  KD: 0.85,              // buildings; applied in Eq. 30.3-1, NOT in qh (7-22) [Table 26.6-1]
+  MIN_NET_PRESSURE: 16,  // psf, strength level          [Sec. 30.2.2]
+  ASD_FACTOR: 0.6,       // 0.6W                         [Sec. 2.4.1]
+  GCPI: { enclosed:0.18, partiallyOpen:0.18, partiallyEnclosed:0.55 },  // [Table 26.13-1]
+  GCP_WALL: {            // Fig. 30.3-1 endpoints, A=10 / A=500 sf
+    pos:   { a10:  1.0, a500:  0.7 },
+    negZ4: { a10: -1.1, a500: -0.8 },
+    negZ5: { a10: -1.4, a500: -0.8 }
+  }
+};
+function computeKz(exposure, h){
+  const c = ASCE.EXPOSURE[exposure];                       // [Table 26.10-1 Note 1]
+  const z = Math.min(Math.max(h, ASCE.KZ_MIN_Z), c.zg);    // ft
+  return 2.41 * Math.pow(z / c.zg, 2 / c.alpha);           // —
+}
+function computeKe(elevFt){                                // [Table 26.9-1]
+  return Math.exp(-0.0000362 * Math.max(elevFt || 0, 0));  // —
+}
+function interpGCp(area, v10, v500){                       // log interp   [Fig. 30.3-1]
+  if(area <= 10) return v10;
+  if(area >= 500) return v500;
+  return v10 + (v500 - v10) * ((Math.log10(area) - 1) / (Math.log10(500) - 1));
+}
+function applyMinimum(p){                                  // [Sec. 30.2.2]
+  if(Math.abs(p) >= ASCE.MIN_NET_PRESSURE) return { p, governed:false };
+  return { p: ASCE.MIN_NET_PRESSURE * (p < 0 ? -1 : 1), governed:true };
+}
+function computeWind(inp){
+  // inp: { V mph, exp, Kzt —, elev ft, encl, L ft, W ft, h ft, theta deg, area sf }
+  const r = {};
+  r.Kh   = computeKz(inp.exp, inp.h);                      // —
+  r.Ke   = computeKe(inp.elev);                            // —
+  r.qh   = 0.00256 * r.Kh * inp.Kzt * r.Ke * inp.V * inp.V; // psf  [Eq. 26.10-1, no Kd in 7-22 qh]
+  r.GCpi = ASCE.GCPI[inp.encl];                            // —
+  r.a    = Math.max(Math.min(0.1*Math.min(inp.L,inp.W), 0.4*inp.h), 0.04*Math.min(inp.L,inp.W), 3); // ft, zone-5 width [Fig. 30.3-1 note]
+  r.GCp_pos   = interpGCp(inp.area, ASCE.GCP_WALL.pos.a10,   ASCE.GCP_WALL.pos.a500);
+  r.GCp_negZ4 = interpGCp(inp.area, ASCE.GCP_WALL.negZ4.a10, ASCE.GCP_WALL.negZ4.a500);
+  r.GCp_negZ5 = interpGCp(inp.area, ASCE.GCP_WALL.negZ5.a10, ASCE.GCP_WALL.negZ5.a500);
+  r.thetaRed  = inp.theta <= 10;                           // 10% wall GCp reduction [Fig. 30.3-1 fn 5]
+  if(r.thetaRed){ r.GCp_pos*=0.9; r.GCp_negZ4*=0.9; r.GCp_negZ5*=0.9; }
+  // Net pressures, p = qh·Kd·(GCp − GCpi)                 [Eq. 30.3-1]
+  const raw = {
+    pos:   r.qh * ASCE.KD * (r.GCp_pos   + r.GCpi),        // psf ult (inward, internal suction)
+    negZ4: r.qh * ASCE.KD * (r.GCp_negZ4 - r.GCpi),        // psf ult (outward + internal press.)
+    negZ5: r.qh * ASCE.KD * (r.GCp_negZ5 - r.GCpi)         // psf ult
+  };
+  r.ult = {}; r.minGov = {};
+  for(const k in raw){ const m = applyMinimum(raw[k]); r.ult[k]=m.p; r.minGov[k]=m.governed; }
+  r.asd = { pos: r.ult.pos*ASCE.ASD_FACTOR, negZ4: r.ult.negZ4*ASCE.ASD_FACTOR, negZ5: r.ult.negZ5*ASCE.ASD_FACTOR }; // psf
+  return r;
+}
+function validate(inp){
+  const w = [];
+  if([inp.V,inp.L,inp.W,inp.h,inp.area].some(x=>!(x>0))) w.push("Wind speed, dimensions, height, and area must be positive.");
+  if(inp.Kzt < 1) w.push("Kzt cannot be less than 1.0.");
+  if(inp.Kzt > 2) w.push("Kzt > 2.0 is unusual — verify per Fig. 26.8-1.");
+  if(inp.h > 60) w.push("h > 60 ft: Ch. 30 Part 1 wall figure does not apply. Use Part 3/4.");
+  if(inp.V > 220) w.push("V > 220 mph — check the input.");
+  return w;
+}
+
+/* ═══ SLOT 4 · LIVE DIAGRAM — wall elevation with zone-5 corner strips ═══ */
+function drawDiagram(inp, r){
+  const W=760, H=200, m=60;
+  const wallW = W-2*m, wallH = 110, y0 = 34;
+  const aFrac = Math.min(r.a / inp.L, 0.45);
+  const aPx = wallW * aFrac;
+  let s = `<rect x="${m}" y="${y0}" width="${wallW}" height="${wallH}" fill="#faf9f7" stroke="#333" stroke-width="1.5"/>`;
+  s += `<rect x="${m}" y="${y0}" width="${aPx}" height="${wallH}" fill="rgba(192,57,43,0.18)"/>`;
+  s += `<rect x="${m+wallW-aPx}" y="${y0}" width="${aPx}" height="${wallH}" fill="rgba(192,57,43,0.18)"/>`;
+  s += `<text x="${m+aPx/2}" y="${y0+wallH/2}" text-anchor="middle" font-family="var(--font-mono)" font-size="13" fill="var(--fail)">Z5</text>`;
+  s += `<text x="${m+wallW-aPx/2}" y="${y0+wallH/2}" text-anchor="middle" font-family="var(--font-mono)" font-size="13" fill="var(--fail)">Z5</text>`;
+  s += `<text x="${m+wallW/2}" y="${y0+wallH/2}" text-anchor="middle" font-family="var(--font-mono)" font-size="13" fill="var(--brand)">ZONE 4  ·  ${num(r.asd.negZ4,1)} psf ASD suction</text>`;
+  // window glyph in zone 4
+  s += `<rect x="${m+wallW/2-22}" y="${y0+wallH-46}" width="44" height="34" fill="#fff" stroke="var(--brand)" stroke-width="1.5"/><line x1="${m+wallW/2}" y1="${y0+wallH-46}" x2="${m+wallW/2}" y2="${y0+wallH-12}" stroke="var(--brand)"/>`;
+  s += `<line x1="${m}" y1="${y0+wallH+16}" x2="${m+aPx}" y2="${y0+wallH+16}" stroke="#555"/><text x="${m+aPx/2}" y="${y0+wallH+30}" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="#333">a = ${num(r.a,2)} ft</text>`;
+  s += `<text x="${m+wallW}" y="${y0-12}" text-anchor="end" font-family="var(--font-mono)" font-size="13" font-weight="700" fill="var(--brand)">qh = ${num(r.qh,2)} psf · Z5 ${num(r.asd.negZ5,1)} psf ASD</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${s}</svg>`;
+}
+
+/* ═══ SLOT 5 · REPORT PAGES ═══ */
+function footer(pg, of, d){
+  return `<div class="page-footer"><div class="footer-text">
+    <span>${esc(FIRM.name)} · ${esc(d.projNo)}</span><span>${esc(FIRM.toolName)} ${esc(FIRM.toolVersion)}</span><span>Page ${pg} of ${of}</span></div></div>`;
+}
+function wm(d){ return d.draft ? `<div class="watermark"><span>DRAFT — UNVERIFIED</span></div>` : ""; }
+const gov = g => g ? ` <span class="min-gov">(16 psf min governs)</span>` : "";
+
+function buildReport(d, r){
+  const enclLabel = {enclosed:"Enclosed", partiallyOpen:"Partially open", partiallyEnclosed:"Partially enclosed"}[d.encl];
+  const p1 = `<div class="report-page">${wm(d)}
+    <h1>${esc(FIRM.name)}</h1>
+    <div class="doc-meta">${esc(FIRM.line1)}<br>${esc(FIRM.line2)}</div>
+    <h2 style="margin-top:0.4rem;">Component &amp; Cladding Wind Pressures — Doors &amp; Windows (Wall Zones 4/5)</h2>
+    <table class="kv-table">
+      <tr><td class="lbl">Project</td><td class="eq"></td><td class="val" colspan="3" style="text-align:left;">${esc(d.project)}</td></tr>
+      <tr><td class="lbl">Project no. / Date</td><td class="eq"></td><td class="val" colspan="3" style="text-align:left;">${esc(d.projNo)} · ${esc(d.date)}</td></tr>
+    </table>
+    <h2>1. Design Basis</h2>
+    <p>ASCE 7-22 Chapter 30, Part 1 (buildings with h ≤ 60 ft), wall Zones 4 and 5 per Figure 30.3-1.
+       Velocity pressure per Eq. 26.10-1 (directionality factor K<sub>d</sub> applied in the pressure equation,
+       Eq. 30.3-1, per the 7-22 reorganization). External coefficients log-interpolated on effective wind area
+       between 10 and 500 sf. ${r.thetaRed ? "Wall GC<sub>p</sub> reduced 10% for θ ≤ 10° per the Fig. 30.3-1 footnote." : ""}
+       Net design pressure not less than ±16 psf (strength) per Sec. 30.2.2. ASD pressures = 0.6W (Sec. 2.4.1).</p>
+    <h2>2. Inputs</h2>
+    <table class="kv-table">
+      <tr><td class="lbl">Basic wind speed (ult)</td><td class="sym">V</td><td class="eq">=</td><td class="val">${num(d.V,0)}</td><td class="unit">mph</td></tr>
+      <tr><td class="lbl">Exposure category</td><td class="sym"></td><td class="eq"></td><td class="val">${esc(d.exp)}</td><td></td></tr>
+      <tr><td class="lbl">Topographic factor</td><td class="sym">K<sub>zt</sub></td><td class="eq">=</td><td class="val">${num(d.Kzt,2)}</td><td></td></tr>
+      <tr><td class="lbl">Ground elevation</td><td class="sym"></td><td class="eq">=</td><td class="val">${num(d.elev,0)}</td><td class="unit">ft</td></tr>
+      <tr><td class="lbl">Enclosure</td><td class="sym">GC<sub>pi</sub></td><td class="eq">=</td><td class="val">±${num(r.GCpi,2)}</td><td class="unit">${esc(enclLabel)}</td></tr>
+      <tr><td class="lbl">Building plan L × W</td><td class="sym"></td><td class="eq">=</td><td class="val">${num(d.L,0)} × ${num(d.W,0)}</td><td class="unit">ft</td></tr>
+      <tr><td class="lbl">Mean roof height</td><td class="sym">h</td><td class="eq">=</td><td class="val">${num(d.h,1)}</td><td class="unit">ft</td></tr>
+      <tr><td class="lbl">Roof slope</td><td class="sym">θ</td><td class="eq">=</td><td class="val">${num(d.theta,0)}</td><td class="unit">deg</td></tr>
+      <tr><td class="lbl">Effective wind area</td><td class="sym">A</td><td class="eq">=</td><td class="val">${num(d.area,0)}</td><td class="unit">sf</td></tr>
+    </table>
+    <h2>3. Velocity Pressure</h2>
+    <div class="calc-step"><span class="ref">Table 26.10-1</span><span class="label">K<sub>h</sub></span> = 2.41·(z/z<sub>g</sub>)<sup>2/α</sup>, z = max(h, 15 ft) = ${num(Math.max(d.h,15),1)} ft → <strong>${num(r.Kh,4)}</strong></div>
+    <div class="calc-step"><span class="ref">Table 26.9-1</span><span class="label">K<sub>e</sub></span> = e<sup>−0.0000362·${num(d.elev,0)}</sup> = <strong>${num(r.Ke,4)}</strong></div>
+    <div class="calc-step"><span class="ref">Eq. 26.10-1</span><span class="label">q<sub>h</sub></span> = 0.00256·K<sub>h</sub>·K<sub>zt</sub>·K<sub>e</sub>·V² = 0.00256 × ${num(r.Kh,4)} × ${num(d.Kzt,2)} × ${num(r.Ke,4)} × ${num(d.V,0)}² = <strong>${num(r.qh,2)} psf</strong></div>
+    <div class="calc-step"><span class="ref">Fig. 30.3-1 note</span><span class="label">a</span> = max(min(0.1·min(L,W), 0.4h), 0.04·min(L,W), 3 ft) = <strong>${num(r.a,2)} ft</strong> (Zone 5 corner width)</div>
+    ${footer(1,2,d)}
+  </div>`;
+
+  const rows = [
+    ["Zone 4/5 — positive (inward)", r.GCp_pos, r.ult.pos, r.asd.pos, r.minGov.pos],
+    ["Zone 4 — negative (suction)",  r.GCp_negZ4, r.ult.negZ4, r.asd.negZ4, r.minGov.negZ4],
+    ["Zone 5 — negative (suction)",  r.GCp_negZ5, r.ult.negZ5, r.asd.negZ5, r.minGov.negZ5]
+  ].map(([lbl,gcp,ult,asd,g]) =>
+    `<tr><td>${lbl}</td><td>${num(gcp,3)}</td><td>${num(ult,1)}${gov(g)}</td><td><strong>${num(asd,1)}</strong></td></tr>`).join("");
+
+  const p2 = `<div class="report-page">${wm(d)}
+    <h2 style="margin-top:0;">4. External Coefficients &amp; Net Pressures</h2>
+    <div class="calc-step"><span class="ref">Fig. 30.3-1</span><span class="label">GC<sub>p</sub></span> log-interpolated at A = ${num(d.area,0)} sf${r.thetaRed ? ", then × 0.9 (θ ≤ 10°)" : ""}:
+      pos = ${num(r.GCp_pos,3)} · Z4 neg = ${num(r.GCp_negZ4,3)} · Z5 neg = ${num(r.GCp_negZ5,3)}</div>
+    <div class="calc-step"><span class="ref">Eq. 30.3-1</span><span class="label">p</span> = q<sub>h</sub>·K<sub>d</sub>·(GC<sub>p</sub> ∓ GC<sub>pi</sub>), K<sub>d</sub> = 0.85; adverse internal pressure each direction.
+      e.g. Z5: ${num(r.qh,2)} × 0.85 × (${num(r.GCp_negZ5,3)} − ${num(r.GCpi,2)}) = <strong>${num(r.qh*0.85*(r.GCp_negZ5-r.GCpi),1)} psf</strong> (ult)</div>
+    <h2>5. Design Pressure Summary</h2>
+    <table class="calc-table">
+      <tr><th>Case</th><th>GC<sub>p</sub></th><th>Ultimate (psf)</th><th>ASD, 0.6W (psf)</th></tr>
+      ${rows}
+    </table>
+    <div class="conclusion-box">
+      <strong>Specify products rated for:</strong> Zone 4 ±${num(Math.max(Math.abs(r.asd.pos),Math.abs(r.asd.negZ4)),1)} psf ·
+      Zone 5 (within ${num(r.a,2)} ft of corners) ±${num(Math.max(Math.abs(r.asd.pos),Math.abs(r.asd.negZ5)),1)} psf (ASD).
+      Compare against product approval design pressures (e.g., FL Product Approval / NOA) at the component's effective area.
+    </div>
+    <p style="font-size:8.5pt;color:#555;">Produced with a single-file tool on the ephemeral-eng framework. Estimate-quality until
+      reviewed, verified per VERIFICATION.md, and sealed by the licensed engineer of record. Tool: ${esc(FIRM.toolName)} ${esc(FIRM.toolVersion)}.</p>
+    <div class="signature-block">
+      <div class="stamp-placeholder">P.E. STAMP</div>
+      <p style="margin-top:0.5rem;">Engineer of Record: ______________________ &nbsp;&nbsp; Date: ____________</p>
+    </div>
+    ${footer(2,2,d)}
+  </div>`;
+  return p1 + p2;
+}
+
+/* ═══ FRAMEWORK RENDER LOOP ═══ */
+function gather(){
+  return {
+    project: $("f_project").value, projNo: $("f_projNo").value,
+    date: $("f_date").value || new Date().toISOString().slice(0,10),
+    V: parseFloat($("f_V").value)||0, exp: $("f_exp").value,
+    Kzt: parseFloat($("f_Kzt").value)||0, elev: parseFloat($("f_elev").value)||0,
+    encl: $("f_encl").value,
+    L: parseFloat($("f_L").value)||0, W: parseFloat($("f_W").value)||0,
+    h: parseFloat($("f_h").value)||0, theta: parseFloat($("f_theta").value)||0,
+    area: parseFloat($("f_area").value)||0, draft: $("f_draft").checked
+  };
+}
+function render(){
+  const d = gather();
+  const warns = validate(d);
+  if(importNotice) warns.unshift(importNotice);
+  const wb = $("warnBanner");
+  wb.className = "warn-banner" + (warns.length ? " active" : "");
+  wb.innerHTML = warns.map(esc).join("<br>");
+  if(warns.some(w=>/must be positive|cannot be less/.test(w))){
+    $("liveResult").innerHTML = "Fix inputs to see results.";
+    $("diagram").innerHTML=""; $("report").innerHTML=""; return;
+  }
+  const r = computeWind(d);
+  $("liveResult").innerHTML =
+    `<strong>q<sub>h</sub></strong> = ${num(r.qh,2)} psf · a = ${num(r.a,2)} ft<br>` +
+    `<strong>ASD:</strong> Z4 +${num(r.asd.pos,1)}/${num(r.asd.negZ4,1)} · Z5 +${num(r.asd.pos,1)}/${num(r.asd.negZ5,1)} psf`;
+  $("diagram").innerHTML = drawDiagram(d, r);
+  $("report").innerHTML  = buildReport(d, r);
+}
+/* ═══ FRAMEWORK · INPUT JSON SAVE/LOAD (see SKILL.md — keep in every tool) ═══ */
+let importNotice = "";
+function serializeInputs(){
+  const inputs = {};
+  document.querySelectorAll('[id^="f_"]').forEach(el=>{
+    if(el.type === "file") return;
+    inputs[el.id] = (el.type === "checkbox") ? el.checked : el.value;
+  });
+  return {
+    _meta: { framework:"ephemeral-eng", tool:FIRM.toolName, toolVersion:FIRM.toolVersion,
+             saved:new Date().toISOString(), source:"user",
+             note:"Portable input state. Keys mirror the tool's f_* input ids. AI generators must set source:'ai'." },
+    inputs
+  };
+}
+function exportJSON(){
+  const state = serializeInputs();
+  const slug = FIRM.toolName.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+  const name = `${($("f_projNo").value||"project").replace(/[^\w-]+/g,"_")}_${slug}_inputs.json`;
+  const blob = new Blob([JSON.stringify(state,null,2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  URL.revokeObjectURL(a.href);
+}
+function importJSON(file){
+  if(!file) return;
+  const rd = new FileReader();
+  rd.onload = ()=>{
+    let state;
+    try { state = JSON.parse(rd.result); }
+    catch(e){ importNotice = "Could not parse that file as JSON."; render(); return; }
+    const meta = state._meta || {}; const notes = [];
+    if(meta.framework !== "ephemeral-eng") notes.push("File is not tagged as an ephemeral-eng input file — applying anyway; review every field.");
+    else if(meta.tool && meta.tool !== FIRM.toolName) notes.push(`File was saved by a different tool ("${meta.tool}") — mismatched fields were skipped; review every value.`);
+    else if(meta.toolVersion && meta.toolVersion !== FIRM.toolVersion) notes.push(`File was saved by ${meta.tool} ${meta.toolVersion}; this is ${FIRM.toolVersion}. Review inputs.`);
+    if(String(meta.source).toLowerCase().includes("ai")) notes.push("⚠ These inputs were AI-GENERATED. Verify EVERY value against the project documents before relying on any result.");
+    for(const [id,val] of Object.entries(state.inputs || {})){
+      const el = $(id);
+      if(!el || el.type === "file") continue;
+      if(el.type === "checkbox") el.checked = !!val; else el.value = val;
+    }
+    importNotice = notes.join(" ");
+    render();
+  };
+  rd.readAsText(file);
+}
+$("f_jsonFile").addEventListener("change", e=>{ importJSON(e.target.files[0]); e.target.value=""; });
+
+document.querySelectorAll("input,select").forEach(el=>{
+  const h = ()=>{ importNotice=""; render(); };
+  el.addEventListener("input", h); el.addEventListener("change", h);
+});
+$("f_date").value = new Date().toISOString().slice(0,10);
+render();
+</script>
+</body>
+</html>
