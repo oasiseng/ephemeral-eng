@@ -32,7 +32,7 @@ An open framework for building single-file, HTML-based engineering tools where *
 
 Small structural calcs today take five apps: compute in Excel or Mathcad, sketch in CAD, write the letter in Word, assemble in Bluebeam, save the PDF. Every hand-off between apps is a chance to transcribe a number wrong. **ephemeral-eng collapses that into one artifact**: a single self-contained HTML file with an input panel on the left and a paginated, branded, code-referenced engineering report on the right. The report re-renders live as you type. Change the beam size, watch the PASS/FAIL flip. When it passes, the thing on your screen is already the deliverable — print it to PDF and you're done. And because an AI can write one of these files in minutes from a plain-English description, the calculator itself becomes *ephemeral*: cheap enough to generate per-project, per-condition, per-client — and reusable when you want it to be.
 
-[docs/EphemeralSample.jpeg]
+[docs/EphemeralSample.png]
 
 ## What's the actual product here?
 
