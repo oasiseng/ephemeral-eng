@@ -1,4 +1,4 @@
-# ephemeral-eng
+# Ephemeral Engineering
 
 **Disposable calculators. Permanent deliverables.**
 
