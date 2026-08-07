@@ -10,6 +10,7 @@ Built for professionals who deliver knowledge to clients: engineers, architects,
 - **Living, not static.** Host it on your own domain. Edit the file, bump the revision table — every stale printout is superseded by design.
 - **You control the deliverable.** Unlisted URL + `noindex` for client work; pull the file and the deliverable ceases to exist. Delete the `noindex` line and it's a public marketing page.
 - **LLM-native.** It's plain HTML/CSS/SVG. Describe a change to any AI assistant and paste the result.
+<img width="747" height="1408" alt="image" src="https://github.com/user-attachments/assets/a12962c0-2533-4a4e-a71e-3fc152371d25" />
 
 ## Quick start
 
